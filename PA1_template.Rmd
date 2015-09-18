@@ -1,25 +1,174 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Activity"
+output: html_document
 ---
+Getting and Processing the data
+====
+The first step is to read in the data. Since we are initially only interested in non-NA rows, we can eliminate them to create a "clean" data set.
 
-
-## Loading and preprocessing the data
-
-
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+read.csv("activity.csv")->data
+data[is.na(data$steps)==FALSE,]->data.clean
+```
+What is mean total number of steps taken per day?
+===
+We are interested in the total number of steps per day. The code below separates out the data into each individual day and evaluates the sum on each day.
+```{r}
+#separate out the dates since we need to add up by days.
+dates<-(data.clean[,2])
+#now split according to days.
+sp<-split(data.clean,dates,drop=TRUE)
+#initialize a sum vector and compute sums.
+sums<-vector("numeric",
+             length=length(names(sp)))
+for (i in 1:length(sums)){
+    sums[i]<-sum(as.data.frame(sp[i])[,1])
+}
+```
+Now we plot out a historgram of the sums.
+```{r}
+#produce plot.
+hist(sums)
+```
+  
+We can also take means and medians for the number of steps each day.
+```{r}
+#initialize vector and compute medians:
+meds<-vector("numeric",length=length(names(sp)))
+for (i in 1:length(sums)){
+    meds[i]<-median(as.data.frame(sp[i])[,1])
+}
+#put the sums and medians into a neat table for presentation.
+summ.table<-as.data.frame(cbind(names(sp),sums,meds))
+c("date","sum","median")->names(summ.table)
+```
+  
+The table is produced below.
+```{r}
+summ.table
+```
+What is the average daily activity pattern?
+===
+We can also observe patterns for the same time interval across all days. First we separate out the data by interval rather than date.
+```{r}
+data.1<-as.data.frame(cbind(data.clean[,1:2],as.factor(data.clean$interval)))
+c("steps","date","interval")->names(data.1)
+#split.
+sp.int<-split(data.1,data.1$interval)
+#generate the vector and fill.
+mean<-vector("numeric",length=length(names(sp.int)))
+for (i in 1:length(names(sp.int))){
+    mean[i]<-mean(as.data.frame(sp.int[i])[,1])
+}
+```
+A line plot of the average activity for each interval is below.
+```{r}
+plot(as.numeric(levels(data.1$interval)),mean,type = "l",xlab="Interval",
+ylab="Mean steps",main="Average steps in each interval")
+```
+  
+If we want to find the interval with the highest average activity, we can readily do so in R.
+```{r}
+x<-(c("Max interval",which(mean==max(mean))))
+y<-(c("Max mean",max(mean)))
+print(as.data.frame(rbind(x,y)))
+```
+Imputing missing values
+===
+How many NA rows are there? Recall that data.clean omits NA rows, so the difference between nrow(data) and nrow(data.clean) is it.
+```{r}
+missingRows=nrow(data)-nrow(data.clean)
+```
+We now make an attempt to deal with the entire data set by filling in an estimate for all NA rows. We first try to identify if days with NA rows and days without are mutually exclusive.
+```{r}
+data.na<-data[is.na(data$steps)==TRUE,]
+#is there any overlap between days with NA and days without? 
+intersect(data.na[,2],data.clean[,2])
+```
+From the output above, it is clear that NA and non-NA days are mutually exclusive. However, since NA days only have NA values, we can estimate the activity using the means for each interval computed in the last section.
+```{r}
+longMean<-rep(mean,8)
+data.2<-as.data.frame(cbind(longMean,data.na[,2:3]))
+c("steps","date","interval")->names(data.2)
+```
+Now we put the two data sets (the clean and estimated NA sets) together and form the "full" data set. We then use the same process as in Section 2 to get the total steps per day, the mean, and the median.
+```{r}
+#now put the data sets back together.
+data.full<-rbind(data.clean,data.2)
+#sort by date.
+x<-as.Date(data.full$date)
+df<-data.full[order(x),]
+#split.
+sp.full<-split(data.full,data.full$date)
+#compute sums
+sums.f<-vector("numeric",length=length(names(sp)))
+for (i in 1:length(sums.f)){
+    sums.f[i]<-sum(as.data.frame(sp.full[i])[,1])
+}
+```
+The historgram is below. 
+```{r}
+#produce plot.
+hist(sums.f)
+```
+  
+And the sums and medians table is below.
+```{r}
+#make table.
+meds.f<-vector("numeric",length=length(names(sp)))
+for (i in 1:length(sums)){
+    meds.f[i]<-median(as.data.frame(sp.full[i])[,1])
+}
+sum.table.f<-as.data.frame(cbind(names(sp),sums.f,meds.f))
+c("date","sum","median")->names(sum.table.f)
+print(sum.table.f)
+```
+Are there differences in activity patterns between weekdays and weekends?
+===
+First, we set up a factor variable differentiating between weekdays and weekends. 
+```{r}
+data.full$date<-as.Date(data.full$date,format="%Y-%m-%d")
+day.status<-vector("numeric",length=nrow(data.full))
+for (i in 1:nrow(data.full)){
+    if(weekdays(data.full$date[i])=="Saturday"){
+        day.status[i]<-0
+    } else if(weekdays(data.full$date[i])=="Sunday"){
+        day.status[i]<-0
+    } else {  
+        day.status[i]<-1
+    }
+}
+#setup the factor variable.
+ds<-factor(day.status)
+levels(ds)<-c("weekend","weekday")
+```
+We add this factor variable to the table and split the table along the weekday factor variable. 
+```{r}
+#create ds table.
+tab<-as.data.frame(cbind(data.full,ds))
+weekday<-tab[tab$ds=="weekday",]
+weekend<-tab[tab$ds=="weekend",]
+#generatre means.
+sp.weekday<-split(weekday,weekday$interval)
+sp.weekend<-split(weekend,weekend$interval)
+```
+We then generate the means for each interval over weekdays and weekends separately.
+```{r}
+#generate the vector and fill.
+mean.weekday<-vector("numeric",length=length(names(sp.weekday)))
+mean.weekend<-vector("numeric",length=length(names(sp.weekend)))
+for (i in 1:length(names(sp.weekday))){
+    mean.weekday[i]<-mean(as.data.frame(sp.weekday[i])[,1])
+}
+for (i in 1:length(names(sp.weekend))){
+    mean.weekend[i]<-mean(as.data.frame(sp.weekend[i])[,1])
+}
+```
+Finally, we plot the two charts.
+```{r}
+par(mfrow=c(2,1))
+plot(unique((weekend$interval)),mean.weekend,type = "l",xlab="Interval",ylab="Mean steps",
+main="Average steps in each interval (weekend)")
+plot(unique((weekday$interval)),mean.weekday,type = "l",xlab="Interval",ylab="Mean steps",
+main="Average steps in each interval (weekday)")
+```
