@@ -4,6 +4,10 @@ output: html_document
 ---
 Getting and Processing the data
 ====
+```{r,echo=FALSE}
+require(knitr)
+fig_path(".png")
+```
 The first step is to read in the data. Since we are initially only interested in non-NA rows, we can eliminate them to create a "clean" data set.
 
 ```{r}
