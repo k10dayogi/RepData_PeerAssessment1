@@ -6,7 +6,8 @@ Getting and Processing the data
 ====
 ```{r,echo=FALSE,warning=FALSE}
 require(knitr,quietly=TRUE)
-invisible(fig_path(".png"))
+require(caTools)
+#invisible(fig_path(".png",fig.path="figure/ "))
 ```
 The first step is to read in the data. Since we are initially only interested in non-NA rows, we can eliminate them to create a "clean" data set.
 
